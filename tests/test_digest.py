@@ -1,5 +1,6 @@
 """Unit tests for digest.py pure functions."""
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -98,3 +99,63 @@ def test_newest_timestamp_returns_max():
         {"published": "2026-04-11T00:00:00+00:00"},
     ]
     assert digest.newest_timestamp(entries) == "2026-04-12T00:00:00+00:00"
+
+
+def test_render_digest_groups_by_source_and_includes_summary():
+    entries = [
+        {
+            "title": "Post A",
+            "link": "https://a.com/1",
+            "published": "2026-04-10T12:00:00+00:00",
+            "source_domain": "a.com",
+            "summary": "AI summary A.",
+        },
+        {
+            "title": "Post B",
+            "link": "https://b.com/2",
+            "published": "2026-04-11T12:00:00+00:00",
+            "source_domain": "b.com",
+            "summary": None,
+        },
+    ]
+    md = digest.render_digest(entries)
+    assert "### [Post A](https://a.com/1)" in md
+    assert "### [Post B](https://b.com/2)" in md
+    assert "**a.com** · Apr 10" in md
+    assert "**b.com** · Apr 11" in md
+    assert "> AI summary A." in md
+    # No blockquote when summary missing
+    b_section = md.split("### [Post B]")[1]
+    assert ">" not in b_section.split("---")[0]
+
+
+def test_render_title_uses_weekly_range():
+    title = digest.render_title(count=7, today=datetime(2026, 4, 13, tzinfo=timezone.utc))
+    assert title == "Week of Apr 13 — 7 new posts"
+
+
+def test_render_title_singular():
+    title = digest.render_title(count=1, today=datetime(2026, 4, 13, tzinfo=timezone.utc))
+    assert title == "Week of Apr 13 — 1 new post"
+
+
+def test_render_digest_within_domain_newest_first():
+    entries = [
+        {
+            "title": "Older A",
+            "link": "https://a.com/old",
+            "published": "2026-04-05T00:00:00+00:00",
+            "source_domain": "a.com",
+            "summary": None,
+        },
+        {
+            "title": "Newer A",
+            "link": "https://a.com/new",
+            "published": "2026-04-12T00:00:00+00:00",
+            "source_domain": "a.com",
+            "summary": None,
+        },
+    ]
+    md = digest.render_digest(entries)
+    # Newer A should appear before Older A in the output.
+    assert md.index("Newer A") < md.index("Older A")

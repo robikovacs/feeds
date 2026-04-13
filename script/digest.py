@@ -88,3 +88,29 @@ def filter_new_entries(entries: list[dict], last_seen: str | None) -> list[dict]
 def newest_timestamp(entries: list[dict]) -> str:
     """Return max published timestamp among entries."""
     return max(e["published"] for e in entries)
+
+
+def render_digest(entries: list[dict]) -> str:
+    """Render markdown body. Domains alphabetical, newest-first within each domain."""
+    # Stable sort: first by published desc, then by domain asc.
+    # Python's sort is stable, so within-domain order from the first pass is preserved.
+    ordered = sorted(entries, key=lambda e: e["published"], reverse=True)
+    ordered = sorted(ordered, key=lambda e: e["source_domain"])
+    parts: list[str] = []
+    for e in ordered:
+        date = datetime.fromisoformat(e["published"]).strftime("%b %-d")
+        parts.append(f"### [{e['title']}]({e['link']})")
+        parts.append(f"**{e['source_domain']}** · {date}")
+        if e.get("summary"):
+            parts.append("")
+            parts.append(f"> {e['summary']}")
+        parts.append("")
+        parts.append("---")
+        parts.append("")
+    return "\n".join(parts).rstrip() + "\n"
+
+
+def render_title(count: int, today: datetime) -> str:
+    date = today.strftime("%b %-d")
+    noun = "post" if count == 1 else "posts"
+    return f"Week of {date} \u2014 {count} new {noun}"
