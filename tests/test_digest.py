@@ -211,21 +211,6 @@ def _fake_response(payload: dict):
     return _Resp()
 
 
-def test_summarize_returns_content_on_success(monkeypatch):
-    monkeypatch.setenv("GITHUB_TOKEN", "t")
-    payload = {"choices": [{"message": {"content": "Short summary."}}]}
-    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
-        result = digest.summarize("Title", "Some content here.")
-    assert result == "Short summary."
-
-
-def test_summarize_returns_none_on_http_error(monkeypatch):
-    monkeypatch.setenv("GITHUB_TOKEN", "t")
-    def boom(*a, **kw):
-        raise OSError("network down")
-    with patch("script.digest.urllib.request.urlopen", side_effect=boom):
-        assert digest.summarize("Title", "content") is None
-
 
 def test_get_repo_and_category_picks_announcements(monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "t")
@@ -291,3 +276,27 @@ def test_blurb_truncates_at_word_boundary():
 
 def test_blurb_no_truncation_when_short():
     assert digest._blurb("short text") == "short text"
+
+
+def test_generate_overview_returns_paragraph_on_success(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    payload = {"choices": [{"message": {"content": "Big AI week. Two CVEs disclosed."}}]}
+    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
+        out = digest.generate_overview([
+            {"title": "A", "source_domain": "x.com"},
+            {"title": "B", "source_domain": "y.com"},
+        ])
+    assert out == "Big AI week. Two CVEs disclosed."
+
+
+def test_generate_overview_returns_none_on_http_error(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    with patch("script.digest.urllib.request.urlopen", side_effect=OSError("network down")):
+        assert digest.generate_overview([{"title": "A", "source_domain": "x.com"}]) is None
+
+
+def test_generate_overview_returns_none_on_empty_entries(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    # Should short-circuit without making an HTTP call.
+    with patch("script.digest.urllib.request.urlopen", side_effect=AssertionError("should not call")):
+        assert digest.generate_overview([]) is None

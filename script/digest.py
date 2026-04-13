@@ -150,17 +150,29 @@ def render_title(count: int, today: datetime) -> str:
 
 
 GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions"
-SUMMARY_MODEL = "openai/gpt-4o-mini"
-SUMMARY_SYSTEM = "Summarize blog posts in 2-3 concise sentences. No fluff."
+OVERVIEW_MODEL = "openai/gpt-4o-mini"
+OVERVIEW_SYSTEM = (
+    "Write a 2-3 sentence overview of this week's developer news. "
+    "Name the 2-3 biggest themes. No fluff."
+)
 
 
-def summarize(title: str, content: str) -> str | None:
-    """Return a short AI summary, or None on any failure."""
+def generate_overview(entries: list[dict]) -> str | None:
+    """Return a short AI overview of the week's posts, or None on failure.
+
+    Makes a single call to GitHub Models regardless of entry count.
+    Silently returns None for empty input or any error.
+    """
+    if not entries:
+        return None
+    bullet_list = "\n".join(
+        f"- {e['title']!r} — {e['source_domain']}" for e in entries
+    )
     body = json.dumps({
-        "model": SUMMARY_MODEL,
+        "model": OVERVIEW_MODEL,
         "messages": [
-            {"role": "system", "content": SUMMARY_SYSTEM},
-            {"role": "user", "content": f"Title: {title}\nContent: {content[:2000]}"},
+            {"role": "system", "content": OVERVIEW_SYSTEM},
+            {"role": "user", "content": f"Posts this week:\n{bullet_list}"},
         ],
         "max_tokens": 200,
     }).encode()
@@ -177,7 +189,7 @@ def summarize(title: str, content: str) -> str | None:
             data = json.loads(resp.read())
             return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        print(f"[warn] summary failed for {title!r}: {e}")
+        print(f"[warn] overview failed: {e}")
         return None
 
 
