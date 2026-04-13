@@ -187,3 +187,38 @@ def test_summarize_returns_none_on_http_error(monkeypatch):
         raise OSError("network down")
     with patch("script.digest.urllib.request.urlopen", side_effect=boom):
         assert digest.summarize("Title", "content") is None
+
+
+def test_get_repo_and_category_picks_announcements(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    payload = {"data": {"repository": {
+        "id": "REPO1",
+        "discussionCategories": {"nodes": [
+            {"id": "C1", "name": "General", "slug": "general"},
+            {"id": "C2", "name": "Announcements", "slug": "announcements"},
+        ]},
+    }}}
+    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
+        repo_id, cat_id = digest.get_repo_and_category("owner", "name")
+    assert (repo_id, cat_id) == ("REPO1", "C2")
+
+
+def test_get_repo_and_category_raises_when_missing(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    payload = {"data": {"repository": {
+        "id": "REPO1",
+        "discussionCategories": {"nodes": [
+            {"id": "C1", "name": "General", "slug": "general"},
+        ]},
+    }}}
+    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
+        with pytest.raises(RuntimeError, match="Announcements"):
+            digest.get_repo_and_category("owner", "name")
+
+
+def test_create_discussion_returns_url(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    payload = {"data": {"createDiscussion": {"discussion": {"url": "https://github.com/o/r/discussions/1"}}}}
+    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
+        url = digest.create_discussion("REPO1", "C2", "Title", "Body")
+    assert url == "https://github.com/o/r/discussions/1"

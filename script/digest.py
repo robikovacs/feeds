@@ -148,3 +148,63 @@ def summarize(title: str, content: str) -> str | None:
     except Exception as e:
         print(f"[warn] summary failed for {title!r}: {e}")
         return None
+
+
+GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"
+
+
+def _graphql(query: str, variables: dict) -> dict:
+    body = json.dumps({"query": query, "variables": variables}).encode()
+    req = urllib.request.Request(
+        GITHUB_GRAPHQL_URL,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+            "Content-Type": "application/json",
+            "User-Agent": "feeds-digest",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    if "errors" in data:
+        raise RuntimeError(f"GraphQL errors: {data['errors']}")
+    return data["data"]
+
+
+def get_repo_and_category(owner: str, name: str) -> tuple[str, str]:
+    """Return (repo_id, announcements_category_id). Raises if Announcements missing."""
+    query = """
+    query($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        id
+        discussionCategories(first: 25) {
+          nodes { id name slug }
+        }
+      }
+    }
+    """
+    data = _graphql(query, {"owner": owner, "name": name})
+    repo = data["repository"]
+    for node in repo["discussionCategories"]["nodes"]:
+        if node["slug"] == "announcements":
+            return repo["id"], node["id"]
+    raise RuntimeError(
+        "Announcements category not found. Enable Discussions in repo settings."
+    )
+
+
+def create_discussion(repo_id: str, category_id: str, title: str, body: str) -> str:
+    """Create an Announcement Discussion. Returns its URL."""
+    mutation = """
+    mutation($repoId: ID!, $catId: ID!, $title: String!, $body: String!) {
+      createDiscussion(input: {
+        repositoryId: $repoId, categoryId: $catId,
+        title: $title, body: $body
+      }) { discussion { url } }
+    }
+    """
+    data = _graphql(mutation, {
+        "repoId": repo_id, "catId": category_id,
+        "title": title, "body": body,
+    })
+    return data["createDiscussion"]["discussion"]["url"]
