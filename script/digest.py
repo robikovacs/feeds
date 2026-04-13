@@ -17,12 +17,19 @@ import feedparser
 import yaml
 
 
-def load_config(path: Path) -> tuple[list[str], bool]:
-    """Return (feed_urls, ai_summary) from feeds.yml."""
+def load_config(path: Path) -> tuple[list[dict], bool]:
+    """Return (feeds, ai_overview) from feeds.yml.
+
+    Each feed is a dict {"url": str, "max": int}. `max` defaults to
+    DEFAULT_MAX_PER_FEED when absent in the YAML.
+    """
     data = yaml.safe_load(path.read_text()) or {}
-    feeds = [entry["url"] for entry in data.get("feeds", [])]
-    ai_summary = bool(data.get("ai_summary", False))
-    return feeds, ai_summary
+    feeds = [
+        {"url": entry["url"], "max": int(entry.get("max", DEFAULT_MAX_PER_FEED))}
+        for entry in data.get("feeds", [])
+    ]
+    ai_overview = bool(data.get("ai_overview", False))
+    return feeds, ai_overview
 
 
 def load_state(path: Path) -> dict[str, str]:
@@ -37,6 +44,7 @@ def save_state(path: Path, state: dict[str, str]) -> None:
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
 
 
+DEFAULT_MAX_PER_FEED = 15
 MAX_FIRST_RUN_PER_FEED = 5
 
 

@@ -9,24 +9,40 @@ import pytest
 from script import digest
 
 
-def test_load_config_reads_feeds_and_ai_flag(tmp_path):
+def test_load_config_reads_feeds_with_default_max(tmp_path):
     cfg = tmp_path / "feeds.yml"
     cfg.write_text(
         "feeds:\n"
         "  - url: https://example.com/a.xml\n"
         "  - url: https://example.com/b.xml\n"
-        "ai_summary: true\n"
+        "ai_overview: true\n"
     )
-    feeds, ai_summary = digest.load_config(cfg)
-    assert feeds == ["https://example.com/a.xml", "https://example.com/b.xml"]
-    assert ai_summary is True
+    feeds, ai_overview = digest.load_config(cfg)
+    assert feeds == [
+        {"url": "https://example.com/a.xml", "max": digest.DEFAULT_MAX_PER_FEED},
+        {"url": "https://example.com/b.xml", "max": digest.DEFAULT_MAX_PER_FEED},
+    ]
+    assert ai_overview is True
 
 
-def test_load_config_defaults_ai_summary_false(tmp_path):
+def test_load_config_per_feed_max_overrides_default(tmp_path):
+    cfg = tmp_path / "feeds.yml"
+    cfg.write_text(
+        "feeds:\n"
+        "  - url: https://example.com/a.xml\n"
+        "    max: 3\n"
+        "  - url: https://example.com/b.xml\n"
+    )
+    feeds, _ = digest.load_config(cfg)
+    assert feeds[0]["max"] == 3
+    assert feeds[1]["max"] == digest.DEFAULT_MAX_PER_FEED
+
+
+def test_load_config_defaults_ai_overview_false(tmp_path):
     cfg = tmp_path / "feeds.yml"
     cfg.write_text("feeds:\n  - url: https://example.com/a.xml\n")
-    feeds, ai_summary = digest.load_config(cfg)
-    assert ai_summary is False
+    _, ai_overview = digest.load_config(cfg)
+    assert ai_overview is False
 
 
 def test_load_state_missing_file_returns_empty(tmp_path):

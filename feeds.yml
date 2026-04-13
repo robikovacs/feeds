@@ -6,11 +6,11 @@ feeds:
 
   # Community / aggregators
   - url: https://hnrss.org/frontpage?points=100         # Hacker News, 100+ points only
+    max: 5                                              # HN can be bursty; cap tighter than default
   - url: https://stackoverflow.blog/feed                # Dev essays and opinions
 
   # Engineering blogs
   - url: https://github.blog/feed/                      # GitHub platform updates, Actions, Copilot
-  - url: https://vercel.com/atom                        # Next.js, frontend, AI SDK
   - url: https://blog.cloudflare.com/rss                # Infrastructure, edge, networking
 
-ai_summary: false   # set to true for AI-powered summaries (uses free GitHub Models)
+ai_overview: false   # set true for a one-paragraph AI overview at the top (uses free GitHub Models)
