@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
 from pathlib import Path
 
@@ -208,3 +209,71 @@ def create_discussion(repo_id: str, category_id: str, title: str, body: str) -> 
         "title": title, "body": body,
     })
     return data["createDiscussion"]["discussion"]["url"]
+
+
+ROOT = Path(__file__).resolve().parent.parent
+CONFIG_PATH = ROOT / "feeds.yml"
+STATE_PATH = ROOT / "state.json"
+SUMMARY_SLEEP_SECONDS = 0.5
+
+
+def fetch_feed(url: str) -> feedparser.FeedParserDict | None:
+    """Parse a feed URL. Return None on failure."""
+    try:
+        parsed = feedparser.parse(url, request_headers={"User-Agent": "feeds-digest"})
+        if parsed.bozo and not parsed.entries:
+            print(f"[warn] feed failed: {url} ({parsed.bozo_exception})")
+            return None
+        return parsed
+    except Exception as e:
+        print(f"[warn] feed failed: {url} ({e})")
+        return None
+
+
+def main() -> int:
+    feeds, ai_summary = load_config(CONFIG_PATH)
+    state = load_state(STATE_PATH)
+
+    all_new: list[dict] = []
+    next_state = dict(state)
+
+    for url in feeds:
+        parsed = fetch_feed(url)
+        if parsed is None:
+            continue
+        entries = parse_entries(parsed, feed_url=url)
+        new = filter_new_entries(entries, last_seen=state.get(url))
+        if not new:
+            print(f"[info] {url}: no new entries")
+            continue
+        print(f"[info] {url}: {len(new)} new entries")
+        all_new.extend(new)
+        next_state[url] = newest_timestamp(entries)
+
+    if not all_new:
+        print("[info] no new posts across all feeds — exiting cleanly")
+        return 0
+
+    if ai_summary:
+        for entry in all_new:
+            entry["summary"] = summarize(entry["title"], entry["content"]) or None
+            time.sleep(SUMMARY_SLEEP_SECONDS)
+    else:
+        for entry in all_new:
+            entry["summary"] = None
+
+    repo_slug = os.environ["GH_REPO"]  # "owner/name"
+    owner, name = repo_slug.split("/")
+    repo_id, cat_id = get_repo_and_category(owner, name)
+
+    body = render_digest(all_new)
+    title = render_title(count=len(all_new), today=datetime.now(timezone.utc))
+    url = create_discussion(repo_id, cat_id, title, body)
+    print(f"[info] posted discussion: {url}")
+
+    save_state(STATE_PATH, next_state)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
