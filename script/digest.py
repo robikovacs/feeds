@@ -45,7 +45,6 @@ def save_state(path: Path, state: dict[str, str]) -> None:
 
 
 DEFAULT_MAX_PER_FEED = 15
-MAX_FIRST_RUN_PER_FEED = 5
 
 
 def _struct_to_iso(t: struct_time | None) -> str:
@@ -96,10 +95,13 @@ def parse_entries(parsed: feedparser.FeedParserDict, feed_url: str) -> list[dict
     return out
 
 
-def filter_new_entries(entries: list[dict], last_seen: str | None) -> list[dict]:
-    """Return entries newer than last_seen, newest-first, deduped by link.
-
-    First run (last_seen is None) caps at MAX_FIRST_RUN_PER_FEED.
+def filter_new_entries(
+    entries: list[dict], last_seen: str | None, max_entries: int
+) -> list[dict]:
+    """Return entries newer than last_seen, newest-first, deduped by link,
+    capped at max_entries. First run (last_seen is None) returns the newest
+    max_entries. Incremental runs return entries with published > last_seen,
+    then capped.
     """
     seen_links: set[str] = set()
     unique: list[dict] = []
@@ -111,9 +113,9 @@ def filter_new_entries(entries: list[dict], last_seen: str | None) -> list[dict]
 
     unique.sort(key=lambda e: e["published"], reverse=True)
 
-    if last_seen is None:
-        return unique[:MAX_FIRST_RUN_PER_FEED]
-    return [e for e in unique if e["published"] > last_seen]
+    if last_seen is not None:
+        unique = [e for e in unique if e["published"] > last_seen]
+    return unique[:max_entries]
 
 
 def newest_timestamp(entries: list[dict]) -> str:

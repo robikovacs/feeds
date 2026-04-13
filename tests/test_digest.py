@@ -85,19 +85,41 @@ def test_filter_new_entries_returns_only_newer():
         {"title": "A", "link": "https://x/a", "published": "2026-04-10T00:00:00+00:00"},
         {"title": "B", "link": "https://x/b", "published": "2026-04-05T00:00:00+00:00"},
     ]
-    new = digest.filter_new_entries(entries, last_seen="2026-04-07T00:00:00+00:00")
+    new = digest.filter_new_entries(
+        entries, last_seen="2026-04-07T00:00:00+00:00", max_entries=10
+    )
     assert [e["title"] for e in new] == ["A"]
 
 
-def test_filter_new_entries_first_run_caps_at_five():
+def test_filter_new_entries_caps_at_max_entries_on_first_run():
     entries = [
-        {"title": f"E{i}", "link": f"https://x/{i}", "published": f"2026-04-{10 + i:02d}T00:00:00+00:00"}
+        {
+            "title": f"E{i}",
+            "link": f"https://x/{i}",
+            "published": f"2026-04-{10 + i:02d}T00:00:00+00:00",
+        }
         for i in range(10)
     ]
-    new = digest.filter_new_entries(entries, last_seen=None)
-    # newest-first, capped at 5
-    assert len(new) == 5
-    assert new[0]["title"] == "E9"
+    new = digest.filter_new_entries(entries, last_seen=None, max_entries=3)
+    assert len(new) == 3
+    assert [e["title"] for e in new] == ["E9", "E8", "E7"]
+
+
+def test_filter_new_entries_caps_at_max_entries_on_incremental_run():
+    entries = [
+        {
+            "title": f"E{i}",
+            "link": f"https://x/{i}",
+            "published": f"2026-04-{10 + i:02d}T00:00:00+00:00",
+        }
+        for i in range(10)
+    ]
+    # All 10 are newer than last_seen, but the cap kicks in.
+    new = digest.filter_new_entries(
+        entries, last_seen="2026-04-01T00:00:00+00:00", max_entries=4
+    )
+    assert len(new) == 4
+    assert [e["title"] for e in new] == ["E9", "E8", "E7", "E6"]
 
 
 def test_filter_new_entries_dedupes_by_link():
@@ -105,7 +127,7 @@ def test_filter_new_entries_dedupes_by_link():
         {"title": "Dup", "link": "https://x/a", "published": "2026-04-10T00:00:00+00:00"},
         {"title": "Dup copy", "link": "https://x/a", "published": "2026-04-10T00:00:00+00:00"},
     ]
-    new = digest.filter_new_entries(entries, last_seen=None)
+    new = digest.filter_new_entries(entries, last_seen=None, max_entries=10)
     assert len(new) == 1
 
 
