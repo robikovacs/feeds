@@ -222,3 +222,34 @@ def test_create_discussion_returns_url(monkeypatch):
     with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
         url = digest.create_discussion("REPO1", "C2", "Title", "Body")
     assert url == "https://github.com/o/r/discussions/1"
+
+
+def test_blurb_empty_returns_empty():
+    assert digest._blurb("") == ""
+    assert digest._blurb(None) == ""
+
+
+def test_blurb_strips_html_tags():
+    assert digest._blurb("<p>Hello <b>world</b></p>") == "Hello world"
+
+
+def test_blurb_decodes_entities():
+    assert digest._blurb("foo &amp; bar &lt;baz&gt;") == "foo & bar <baz>"
+
+
+def test_blurb_collapses_whitespace():
+    assert digest._blurb("foo\n\n  \tbar") == "foo bar"
+
+
+def test_blurb_truncates_at_word_boundary():
+    text = "hello world " * 50  # 600 chars
+    result = digest._blurb(text)
+    assert result.endswith("…")
+    assert len(result) <= 301
+    clean = ("hello world " * 50).strip()
+    trimmed = result.rstrip("…").rstrip()
+    assert clean.startswith(trimmed)
+
+
+def test_blurb_no_truncation_when_short():
+    assert digest._blurb("short text") == "short text"

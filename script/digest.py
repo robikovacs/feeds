@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import calendar
+import html
 import json
 import os
+import re
 import time
 import urllib.request
 from datetime import datetime, timezone
@@ -43,6 +45,26 @@ def _struct_to_iso(t: struct_time | None) -> str:
     if t is None:
         return datetime.now(timezone.utc).isoformat(timespec="seconds")
     return datetime.fromtimestamp(calendar.timegm(t), tz=timezone.utc).isoformat(timespec="seconds")
+
+
+def _blurb(text: str | None, max_len: int = 300) -> str:
+    """Turn RSS content into a short plain-text blurb.
+
+    Strips HTML tags, decodes entities, collapses whitespace,
+    truncates at the last word boundary within max_len and appends '…'.
+    Returns '' for empty/None input.
+    """
+    if not text:
+        return ""
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= max_len:
+        return text
+    cut = text.rfind(" ", 0, max_len)
+    if cut == -1:
+        cut = max_len
+    return text[:cut] + "…"
 
 
 def parse_entries(parsed: feedparser.FeedParserDict, feed_url: str) -> list[dict]:
