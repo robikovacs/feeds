@@ -1,0 +1,16 @@
+feeds:
+  # Individual bloggers
+  - url: https://simonwillison.net/atom/everything/    # AI, Python, Django — prolific and high signal
+  - url: https://blog.samaltman.com/posts.atom          # OpenAI CEO, infrequent but high impact
+  - url: https://feeds.hanselman.com/ScottHanselman     # .NET, dev tools, culture
+
+  # Community / aggregators
+  - url: https://hnrss.org/frontpage?points=100         # Hacker News, 100+ points only
+  - url: https://stackoverflow.blog/feed                # Dev essays and opinions
+
+  # Engineering blogs
+  - url: https://github.blog/feed/                      # GitHub platform updates, Actions, Copilot
+  - url: https://vercel.com/atom                        # Next.js, frontend, AI SDK
+  - url: https://blog.cloudflare.com/rss                # Infrastructure, edge, networking
+
+ai_summary: false   # set to true for AI-powered summaries (uses free GitHub Models)
