@@ -140,32 +140,90 @@ def test_newest_timestamp_returns_max():
     assert digest.newest_timestamp(entries) == "2026-04-12T00:00:00+00:00"
 
 
-def test_render_digest_groups_by_source_and_includes_summary():
-    entries = [
-        {
-            "title": "Post A",
-            "link": "https://a.com/1",
-            "published": "2026-04-10T12:00:00+00:00",
-            "source_domain": "a.com",
-            "summary": "AI summary A.",
-        },
-        {
-            "title": "Post B",
-            "link": "https://b.com/2",
-            "published": "2026-04-11T12:00:00+00:00",
-            "source_domain": "b.com",
-            "summary": None,
-        },
-    ]
+def test_render_digest_includes_title_source_and_date():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "",
+    }]
     md = digest.render_digest(entries)
     assert "### [Post A](https://a.com/1)" in md
-    assert "### [Post B](https://b.com/2)" in md
     assert "**a.com** · Apr 10" in md
-    assert "**b.com** · Apr 11" in md
-    assert "> AI summary A." in md
-    # No blockquote when summary missing
-    b_section = md.split("### [Post B]")[1]
-    assert ">" not in b_section.split("---")[0]
+
+
+def test_render_digest_includes_blurb_from_content():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "Plain text blurb.",
+    }]
+    md = digest.render_digest(entries)
+    assert "> Plain text blurb." in md
+
+
+def test_render_digest_strips_html_from_blurb():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "<p>Hello <b>world</b></p> &amp; more",
+    }]
+    md = digest.render_digest(entries)
+    assert "> Hello world & more" in md
+    assert "<p>" not in md
+    assert "&amp;" not in md
+
+
+def test_render_digest_omits_blockquote_when_content_empty():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "",
+    }]
+    md = digest.render_digest(entries)
+    assert "\n> " not in md
+
+
+def test_render_digest_within_domain_newest_first():
+    entries = [
+        {"title": "Older A", "link": "https://a.com/old",
+         "published": "2026-04-05T00:00:00+00:00", "source_domain": "a.com", "content": ""},
+        {"title": "Newer A", "link": "https://a.com/new",
+         "published": "2026-04-12T00:00:00+00:00", "source_domain": "a.com", "content": ""},
+    ]
+    md = digest.render_digest(entries)
+    assert md.index("Newer A") < md.index("Older A")
+
+
+def test_render_digest_prepends_overview_when_provided():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "",
+    }]
+    md = digest.render_digest(entries, overview="Big week in AI.")
+    assert md.index("Big week in AI.") < md.index("### [Post A]")
+
+
+def test_render_digest_no_overview_by_default():
+    entries = [{
+        "title": "Post A",
+        "link": "https://a.com/1",
+        "published": "2026-04-10T12:00:00+00:00",
+        "source_domain": "a.com",
+        "content": "",
+    }]
+    md = digest.render_digest(entries)
+    assert md.lstrip().startswith("### [Post A]")
 
 
 def test_render_title_uses_weekly_range():
@@ -176,28 +234,6 @@ def test_render_title_uses_weekly_range():
 def test_render_title_singular():
     title = digest.render_title(count=1, today=datetime(2026, 4, 13, tzinfo=timezone.utc))
     assert title == "Week of Apr 13 — 1 new post"
-
-
-def test_render_digest_within_domain_newest_first():
-    entries = [
-        {
-            "title": "Older A",
-            "link": "https://a.com/old",
-            "published": "2026-04-05T00:00:00+00:00",
-            "source_domain": "a.com",
-            "summary": None,
-        },
-        {
-            "title": "Newer A",
-            "link": "https://a.com/new",
-            "published": "2026-04-12T00:00:00+00:00",
-            "source_domain": "a.com",
-            "summary": None,
-        },
-    ]
-    md = digest.render_digest(entries)
-    # Newer A should appear before Older A in the output.
-    assert md.index("Newer A") < md.index("Older A")
 
 
 def _fake_response(payload: dict):

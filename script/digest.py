@@ -123,20 +123,28 @@ def newest_timestamp(entries: list[dict]) -> str:
     return max(e["published"] for e in entries)
 
 
-def render_digest(entries: list[dict]) -> str:
-    """Render markdown body. Domains alphabetical, newest-first within each domain."""
-    # Stable sort: first by published desc, then by domain asc.
-    # Python's sort is stable, so within-domain order from the first pass is preserved.
+def render_digest(entries: list[dict], overview: str | None = None) -> str:
+    """Render markdown body. Domains alphabetical, newest-first within each domain.
+
+    When `overview` is provided, it's prepended as an intro paragraph above
+    the entries, followed by a horizontal rule.
+    """
     ordered = sorted(entries, key=lambda e: e["published"], reverse=True)
     ordered = sorted(ordered, key=lambda e: e["source_domain"])
     parts: list[str] = []
+    if overview:
+        parts.append(overview)
+        parts.append("")
+        parts.append("---")
+        parts.append("")
     for e in ordered:
         date = datetime.fromisoformat(e["published"]).strftime("%b %-d")
         parts.append(f"### [{e['title']}]({e['link']})")
         parts.append(f"**{e['source_domain']}** · {date}")
-        if e.get("summary"):
+        blurb = _blurb(e.get("content", ""))
+        if blurb:
             parts.append("")
-            parts.append(f"> {e['summary']}")
+            parts.append(f"> {blurb}")
         parts.append("")
         parts.append("---")
         parts.append("")
