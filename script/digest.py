@@ -6,7 +6,6 @@ import html
 import json
 import os
 import re
-import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -264,7 +263,6 @@ def create_discussion(repo_id: str, category_id: str, title: str, body: str) -> 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT / "feeds.yml"
 STATE_PATH = ROOT / "state.json"
-SUMMARY_SLEEP_SECONDS = 0.5
 
 
 def fetch_feed(url: str) -> feedparser.FeedParserDict | None:
@@ -281,18 +279,21 @@ def fetch_feed(url: str) -> feedparser.FeedParserDict | None:
 
 
 def main() -> int:
-    feeds, ai_summary = load_config(CONFIG_PATH)
+    feeds, ai_overview = load_config(CONFIG_PATH)
     state = load_state(STATE_PATH)
 
     all_new: list[dict] = []
     next_state = dict(state)
 
-    for url in feeds:
+    for feed in feeds:
+        url = feed["url"]
         parsed = fetch_feed(url)
         if parsed is None:
             continue
         entries = parse_entries(parsed, feed_url=url)
-        new = filter_new_entries(entries, last_seen=state.get(url))
+        new = filter_new_entries(
+            entries, last_seen=state.get(url), max_entries=feed["max"]
+        )
         if not new:
             print(f"[info] {url}: no new entries")
             continue
@@ -304,19 +305,13 @@ def main() -> int:
         print("[info] no new posts across all feeds — exiting cleanly")
         return 0
 
-    if ai_summary:
-        for entry in all_new:
-            entry["summary"] = summarize(entry["title"], entry["content"]) or None
-            time.sleep(SUMMARY_SLEEP_SECONDS)
-    else:
-        for entry in all_new:
-            entry["summary"] = None
+    overview = generate_overview(all_new) if ai_overview else None
 
-    repo_slug = os.environ["GH_REPO"]  # "owner/name"
+    repo_slug = os.environ["GH_REPO"]
     owner, name = repo_slug.split("/")
     repo_id, cat_id = get_repo_and_category(owner, name)
 
-    body = render_digest(all_new)
+    body = render_digest(all_new, overview=overview)
     title = render_title(count=len(all_new), today=datetime.now(timezone.utc))
     url = create_discussion(repo_id, cat_id, title, body)
     print(f"[info] posted discussion: {url}")
