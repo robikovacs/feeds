@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -114,3 +116,35 @@ def render_title(count: int, today: datetime) -> str:
     date = today.strftime("%b %-d")
     noun = "post" if count == 1 else "posts"
     return f"Week of {date} \u2014 {count} new {noun}"
+
+
+GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions"
+SUMMARY_MODEL = "openai/gpt-4o-mini"
+SUMMARY_SYSTEM = "Summarize blog posts in 2-3 concise sentences. No fluff."
+
+
+def summarize(title: str, content: str) -> str | None:
+    """Return a short AI summary, or None on any failure."""
+    body = json.dumps({
+        "model": SUMMARY_MODEL,
+        "messages": [
+            {"role": "system", "content": SUMMARY_SYSTEM},
+            {"role": "user", "content": f"Title: {title}\nContent: {content[:2000]}"},
+        ],
+        "max_tokens": 200,
+    }).encode()
+    req = urllib.request.Request(
+        GITHUB_MODELS_URL,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+            return data["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"[warn] summary failed for {title!r}: {e}")
+        return None

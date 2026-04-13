@@ -2,6 +2,7 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -159,3 +160,30 @@ def test_render_digest_within_domain_newest_first():
     md = digest.render_digest(entries)
     # Newer A should appear before Older A in the output.
     assert md.index("Newer A") < md.index("Older A")
+
+
+def _fake_response(payload: dict):
+    class _Resp:
+        def __enter__(self_inner):
+            return self_inner
+        def __exit__(self_inner, *a):
+            return False
+        def read(self_inner):
+            return json.dumps(payload).encode()
+    return _Resp()
+
+
+def test_summarize_returns_content_on_success(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    payload = {"choices": [{"message": {"content": "Short summary."}}]}
+    with patch("script.digest.urllib.request.urlopen", return_value=_fake_response(payload)):
+        result = digest.summarize("Title", "Some content here.")
+    assert result == "Short summary."
+
+
+def test_summarize_returns_none_on_http_error(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    def boom(*a, **kw):
+        raise OSError("network down")
+    with patch("script.digest.urllib.request.urlopen", side_effect=boom):
+        assert digest.summarize("Title", "content") is None
