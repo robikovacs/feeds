@@ -1,12 +1,17 @@
 """Poll RSS feeds, summarize new posts, post a digest to GitHub Discussions."""
 from __future__ import annotations
 
+import calendar
 import json
 import os
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
+from time import struct_time
+from urllib.parse import urlparse
 
+import feedparser
 import yaml
 
 
@@ -29,13 +34,6 @@ def save_state(path: Path, state: dict[str, str]) -> None:
     """Write state.json with sorted keys + trailing newline for stable diffs."""
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
 
-
-import calendar
-from datetime import datetime, timezone
-from time import struct_time
-from urllib.parse import urlparse
-
-import feedparser
 
 MAX_FIRST_RUN_PER_FEED = 5
 
