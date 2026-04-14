@@ -23,18 +23,20 @@ Edit `feeds.yml`:
 feeds:
   - url: https://simonwillison.net/atom/everything/
   - url: https://hnrss.org/frontpage?points=100
+    max: 5
   - url: https://github.blog/feed/
   - url: https://blog.cloudflare.com/rss
 
-ai_summary: false   # set to true for AI-powered summaries (free via GitHub Models)
+ai_overview: false   # set true for a one-paragraph AI overview at the top
 ```
 
 ## How it works
 
 - GitHub Actions runs on a weekly cron
 - Polls your RSS/Atom feeds for new posts
-- Optionally summarizes each post using GitHub Models (free, built into Actions)
-- Creates an Announcement Discussion with the weekly digest
+- Renders each post with its own RSS description as a blurb
+- Optionally generates a single AI overview paragraph at the top (free via GitHub Models)
+- Posts an Announcement Discussion with the weekly digest
 - GitHub emails everyone watching the repo
 - State tracked in `state.json` (auto-committed)
 
@@ -46,9 +48,9 @@ Watch this repo → **Custom** → check **Discussions** only.
 
 Edit `.github/workflows/digest.yml` — update the cron expression. Examples: daily = `0 8 * * *`, Mon + Thu = `0 8 * * 1,4`.
 
-## Want AI summaries?
+## Want an AI overview?
 
-Set `ai_summary: true` in `feeds.yml`. Uses GitHub Models (free for all accounts).
+Set `ai_overview: true` in `feeds.yml`. Makes a single call per run to GitHub Models (free) and prepends a short "this week" paragraph above the posts. One call per digest — no rate-limit issues, and if the call fails the digest still posts.
 
 ## Cost
 
