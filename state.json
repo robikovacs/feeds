@@ -1,1 +1,9 @@
-{}
+{
+  "https://blog.cloudflare.com/rss": "2026-04-17T13:05:00+00:00",
+  "https://blog.samaltman.com/posts.atom": "2026-04-10T22:55:13+00:00",
+  "https://feeds.hanselman.com/ScottHanselman": "2026-02-09T05:50:59+00:00",
+  "https://github.blog/feed/": "2026-04-17T18:00:00+00:00",
+  "https://hnrss.org/frontpage?points=100": "2026-04-20T00:07:16+00:00",
+  "https://simonwillison.net/atom/everything/": "2026-04-20T02:33:58+00:00",
+  "https://stackoverflow.blog/feed": "2026-04-17T07:40:00+00:00"
+}
